@@ -13,6 +13,9 @@ class Region {
         this.util = ws.util;
         this.style = this.util.style;
 
+        this.minStart = params.minStart;
+        this.maxEnd = params.maxEnd;
+
         this.id = params.id == null ? ws.util.getId() : params.id;
         this.start = Number(params.start) || 0;
         this.end =
@@ -71,36 +74,70 @@ class Region {
 
     /* Update region params. */
     update(params) {
-        if (params.start != null) {
-            this.start = Number(params.start);
+
+        if (params.minStart != null) {
+            this.minStart = params.minStart;
         }
-        if (params.end != null) {
-            this.end = Number(params.end);
+
+        if (params.maxEnd != null) {
+            this.maxEnd = params.maxEnd;
         }
+
+        if (params.start != null && params.end != null) {
+
+            let start = Number(params.start);
+            let end = Number(params.end);
+    
+            this.start = start;
+            this.end = end;
+    
+            if (this.minStart && start < this.minStart && end < this.minStart) {
+                this.remove();
+                return;
+            } else if (this.minStart && start < this.minStart && end > this.minStart) {
+                this.start = this.minStart;
+            }
+            
+            if (this.maxEnd && end > this.maxEnd && start > this.maxEnd) {
+                this.remove();
+                return;
+            } else if (this.maxEnd && start < this.maxEnd && end > this.maxEnd) {
+                this.end = this.maxEnd;
+            }
+        } 
+
         if (params.loop != null) {
             this.loop = Boolean(params.loop);
         }
+
         if (params.color != null) {
             this.color = params.color;
         }
+
         if (params.handleStyle != null) {
             this.handleStyle = params.handleStyle;
         }
+
         if (params.data != null) {
             this.data = params.data;
         }
+
         if (params.resize != null) {
             this.resize = Boolean(params.resize);
         }
+
         if (params.drag != null) {
             this.drag = Boolean(params.drag);
         }
+
         if (params.maxLength != null) {
             this.maxLength = Number(params.maxLength);
         }
+
         if (params.minLength != null) {
             this.minLength = Number(params.minLength);
         }
+
         if (params.attributes != null) {
             this.attributes = params.attributes;
         }
@@ -566,8 +603,10 @@ class Region {
     }
 
     onDrag(delta) {
-        const maxEnd = this.wavesurfer.getDuration();
-        if (this.end + delta > maxEnd || this.start + delta < 0) {
+        const maxEnd = this.maxEnd ? this.maxEnd : this.wavesurfer.getDuration();
+        const minStart = this.minStart ? this.minStart : 0;
+
+        if (this.end + delta > maxEnd || this.start + delta < minStart) {
             return;
         }
 
@@ -579,11 +618,21 @@ class Region {
 
     onResize(delta, direction) {
         if (direction === 'start') {
+
+            if (this.minStart > this.start + delta || this.start + delta > this.maxEnd) {
+                return;
+            }
+
             this.update({
                 start: Math.min(this.start + delta, this.end),
                 end: Math.max(this.start + delta, this.end)
             });
         } else {
+
+            if (this.maxEnd < this.end + delta || this.end + delta < this.minStart) {
+                return;
+            }
+
             this.update({
                 start: Math.min(this.end + delta, this.start),
                 end: Math.max(this.end + delta, this.start)
